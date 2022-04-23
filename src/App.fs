@@ -5,37 +5,96 @@ open Elmish.React
 open Feliz
 
 type State =
-    { Count: int }
+    {
+        TodoList: string list
+        NewTodo: string
+    }
 
 type Msg =
-    | Increment
-    | Decrement
+    | SetNewTodo of string
+    | AddNewTodo
 
-let init() =
-    { Count = 0 }
+let init () =
+    {
+        TodoList = [ "Learn F#" ]
+        NewTodo = ""
+    }
 
-let update (msg: Msg) (state: State): State =
+let update (msg: Msg) (state: State) : State =
     match msg with
-    | Increment ->
-        { state with Count = state.Count + 1 }
+    | SetNewTodo todoText -> { state with NewTodo = todoText }
+    | AddNewTodo when state.NewTodo = "" -> state
+    | AddNewTodo ->
+        { state with
+            NewTodo = ""
+            TodoList = List.append state.TodoList [ state.NewTodo ]
+        }
 
-    | Decrement ->
-        { state with Count = state.Count - 1 }
+let appTitle =
+    Html.p [
+        prop.className "title"
+        prop.text "Elmish todo list"
+    ]
+
+let inputField (state: State) (dispatch: Msg -> unit) =
+    Html.div [
+        prop.classes [ "field"; "has-addons" ]
+        prop.children [
+            Html.div [
+                prop.classes [
+                    "control"
+                    "is-expanded"
+                ]
+                prop.children [
+                    Html.input [
+                        prop.classes [ "input"; "is-medium" ]
+                        prop.valueOrDefault state.NewTodo
+                        prop.onChange (SetNewTodo >> dispatch)
+                    ]
+                ]
+            ]
+
+            Html.div [
+                prop.className "control"
+                prop.children [
+                    Html.button [
+                        prop.classes [
+                            "button"
+                            "is-primary"
+                            "is-medium"
+                        ]
+                        prop.onClick (fun _ -> dispatch AddNewTodo)
+                        prop.children [
+                            Html.i [
+                                prop.classes [ "fa"; "fa-plus" ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+    ]
+
+let todoList (state: State) (dispatch: Msg -> unit) =
+    Html.ul [
+        prop.children [
+            for todo in state.TodoList ->
+                Html.li [
+                    prop.classes [ "box"; "subtitle" ]
+                    prop.text todo
+                ]
+        ]
+    ]
 
 let render (state: State) (dispatch: Msg -> unit) =
-  Html.div [
-    Html.button [
-      prop.onClick (fun _ -> dispatch Increment)
-      prop.text "Increment"
+    Html.div [
+        prop.style [ style.padding 20 ]
+        prop.children [
+            appTitle
+            inputField state dispatch
+            todoList state dispatch
+        ]
     ]
-
-    Html.button [
-      prop.onClick (fun _ -> dispatch Decrement)
-      prop.text "Decrement"
-    ]
-
-    Html.h1 state.Count
-  ]
 
 Program.mkSimple init update render
 |> Program.withReactSynchronous "elmish-app"
