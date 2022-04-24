@@ -162,6 +162,11 @@ let inputField (state: State) (dispatch: Msg -> unit) =
                         prop.classes [ "input"; "is-medium" ]
                         prop.valueOrDefault state.NewTodo
                         prop.onChange (SetNewTodo >> dispatch)
+                        prop.onKeyDown (fun ev -> 
+                            match ev with
+                                | ev when ev.keyCode = 13. -> dispatch AddNewTodo
+                                | _ -> ()
+                        )
                     ]
                 ]
             ]
