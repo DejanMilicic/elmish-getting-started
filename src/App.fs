@@ -5,7 +5,8 @@ open Elmish.React
 open Feliz
 open System
 
-let [<Literal>] ENTER_KEY = 13.
+[<Literal>]
+let ENTER_KEY = 13.
 
 type Todo =
     {
@@ -164,11 +165,10 @@ let inputField (state: State) (dispatch: Msg -> unit) =
                         prop.classes [ "input"; "is-medium" ]
                         prop.valueOrDefault state.NewTodo
                         prop.onChange (SetNewTodo >> dispatch)
-                        prop.onKeyDown (fun ev -> 
+                        prop.onKeyDown (fun ev ->
                             match ev with
-                                | ev when ev.keyCode = ENTER_KEY -> dispatch AddNewTodo
-                                | _ -> ()
-                        )
+                            | ev when ev.keyCode = ENTER_KEY -> dispatch AddNewTodo
+                            | _ -> ())
                     ]
                 ]
             ]
@@ -201,12 +201,20 @@ let div (classes: string list) (children: Fable.React.ReactElement list) =
     ]
 
 let renderTodo (state: State) (todo: Todo) (dispatch: Msg -> unit) =
-    div [ 
-        "box"
-        match state.TodoFilter with
-            | Completed -> if not todo.Completed then "is-hidden" else ""
-            | NotCompleted -> if todo.Completed then "is-hidden" else ""
-            | All -> ""        
+    div [
+            "box"
+            match state.TodoFilter with
+            | Completed ->
+                if not todo.Completed then
+                    "is-hidden"
+                else
+                    ""
+            | NotCompleted ->
+                if todo.Completed then
+                    "is-hidden"
+                else
+                    ""
+            | All -> ""
         ] [
         div [
                 "columns"
@@ -267,6 +275,10 @@ let renderEditForm (todoBeingEdited: TodoBeingEdited) (dispatch: Msg -> unit) =
                     prop.classes [ "input"; "is-medium" ]
                     prop.valueOrDefault todoBeingEdited.Description
                     prop.onTextChange (SetEditedDescription >> dispatch)
+                    prop.onKeyDown (fun ev ->
+                        match ev with
+                        | ev when ev.keyCode = ENTER_KEY -> dispatch ApplyEdit
+                        | _ -> ())
                 ]
             ]
 
@@ -313,7 +325,7 @@ let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
                         "is-active"
                 ]
                 prop.children [
-                    Html.a [ 
+                    Html.a [
                         prop.text "All"
                         prop.onClick (fun _ -> dispatch (SetActiveFilterTab All))
                     ]
@@ -326,7 +338,7 @@ let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
                         "is-active"
                 ]
                 prop.children [
-                    Html.a [ 
+                    Html.a [
                         prop.text "Completed"
                         prop.onClick (fun _ -> dispatch (SetActiveFilterTab Completed))
                     ]
@@ -339,7 +351,7 @@ let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
                         "is-active"
                 ]
                 prop.children [
-                    Html.a [ 
+                    Html.a [
                         prop.text "Not Completed"
                         prop.onClick (fun _ -> dispatch (SetActiveFilterTab NotCompleted))
                     ]
