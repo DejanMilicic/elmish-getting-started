@@ -14,11 +14,17 @@ type Todo =
 
 type TodoBeingEdited = { Id: Guid; Description: string }
 
+type Filter =
+    | All
+    | Completed
+    | NotCompleted
+
 type State =
     {
         NewTodo: string
         TodoList: Todo list
         TodoBeingEdited: TodoBeingEdited option
+        TodoFilter: Filter
     }
 
 type Msg =
@@ -30,6 +36,7 @@ type Msg =
     | ApplyEdit
     | StartEditingTodo of Guid
     | SetEditedDescription of string
+    | SetActiveFilterTab of Filter
 
 let init () =
     {
@@ -43,10 +50,13 @@ let init () =
                 }
             ]
         TodoBeingEdited = None
+        TodoFilter = Filter.All
     }
 
 let update (msg: Msg) (state: State) : State =
     match msg with
+    | SetActiveFilterTab filter -> { state with TodoFilter = filter }
+
     | SetNewTodo desc -> { state with NewTodo = desc }
 
     | ToggleCompleted todoId ->
@@ -183,8 +193,14 @@ let div (classes: string list) (children: Fable.React.ReactElement list) =
         prop.children children
     ]
 
-let renderTodo (todo: Todo) (dispatch: Msg -> unit) =
-    div [ "box" ] [
+let renderTodo (state: State) (todo: Todo) (dispatch: Msg -> unit) =
+    div [ 
+        "box"
+        match state.TodoFilter with
+            | Completed -> if not todo.Completed then "is-hidden" else ""
+            | NotCompleted -> if todo.Completed then "is-hidden" else ""
+            | All -> ""        
+        ] [
         div [
                 "columns"
                 "is-mobile"
@@ -277,7 +293,51 @@ let todoList (state: State) (dispatch: Msg -> unit) =
             for todo in state.TodoList ->
                 match state.TodoBeingEdited with
                 | Some todoBeingEdited when todoBeingEdited.Id = todo.Id -> renderEditForm todoBeingEdited dispatch
-                | otherwise -> renderTodo todo dispatch
+                | otherwise -> renderTodo state todo dispatch
+        ]
+    ]
+
+let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
+    div [ "tabs"; "is-toggle"; "is-fullwidth" ] [
+        Html.ul [
+            Html.li [
+                prop.className [
+                    if state.TodoFilter = All then
+                        "is-active"
+                ]
+                prop.children [
+                    Html.a [ 
+                        prop.text "All"
+                        prop.onClick (fun _ -> dispatch (SetActiveFilterTab All))
+                    ]
+                ]
+            ]
+
+            Html.li [
+                prop.className [
+                    if state.TodoFilter = Completed then
+                        "is-active"
+                ]
+                prop.children [
+                    Html.a [ 
+                        prop.text "Completed"
+                        prop.onClick (fun _ -> dispatch (SetActiveFilterTab Completed))
+                    ]
+                ]
+            ]
+
+            Html.li [
+                prop.className [
+                    if state.TodoFilter = NotCompleted then
+                        "is-active"
+                ]
+                prop.children [
+                    Html.a [ 
+                        prop.text "Not Completed"
+                        prop.onClick (fun _ -> dispatch (SetActiveFilterTab NotCompleted))
+                    ]
+                ]
+            ]
         ]
     ]
 
@@ -287,6 +347,7 @@ let render (state: State) (dispatch: Msg -> unit) =
         prop.children [
             appTitle
             inputField state dispatch
+            renderFilterTabs state dispatch
             todoList state dispatch
         ]
     ]
