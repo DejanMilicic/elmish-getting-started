@@ -3,15 +3,16 @@ module App
 open Elmish
 open Elmish.React
 open Feliz
+open System
 
 type Todo =
     {
-        Id: int
+        Id: Guid
         Description: string
         Completed: bool
     }
 
-type TodoBeingEdited = { Id: int; Description: string }
+type TodoBeingEdited = { Id: Guid; Description: string }
 
 type State =
     {
@@ -23,11 +24,11 @@ type State =
 type Msg =
     | SetNewTodo of string
     | AddNewTodo
-    | ToggleCompleted of int
-    | DeleteTodo of int
+    | ToggleCompleted of Guid
+    | DeleteTodo of Guid
     | CancelEdit
     | ApplyEdit
-    | StartEditingTodo of int
+    | StartEditingTodo of Guid
     | SetEditedDescription of string
 
 let init () =
@@ -36,7 +37,7 @@ let init () =
         TodoList =
             [
                 {
-                    Id = 1
+                    Id = Guid.NewGuid()
                     Description = "Learn F#"
                     Completed = false
                 }
@@ -71,17 +72,9 @@ let update (msg: Msg) (state: State) : State =
     | AddNewTodo when state.NewTodo = "" -> state
 
     | AddNewTodo ->
-        let nextTodoId =
-            match state.TodoList with
-            | [] -> 1
-            | elems ->
-                elems
-                |> List.maxBy (fun todo -> todo.Id)
-                |> fun todo -> todo.Id + 1
-
         let nextTodo =
             {
-                Id = nextTodoId
+                Id = Guid.NewGuid()
                 Description = state.NewTodo
                 Completed = false
             }
