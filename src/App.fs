@@ -5,6 +5,8 @@ open Elmish.React
 open Feliz
 open System
 
+let [<Literal>] ENTER_KEY = 13.
+
 type Todo =
     {
         Id: Guid
@@ -164,7 +166,7 @@ let inputField (state: State) (dispatch: Msg -> unit) =
                         prop.onChange (SetNewTodo >> dispatch)
                         prop.onKeyDown (fun ev -> 
                             match ev with
-                                | ev when ev.keyCode = 13. -> dispatch AddNewTodo
+                                | ev when ev.keyCode = ENTER_KEY -> dispatch AddNewTodo
                                 | _ -> ()
                         )
                     ]
