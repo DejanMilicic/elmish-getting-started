@@ -4,6 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CmdExt.fs" />
+    <Compile Include="Async.fs" />
+    <Compile Include="Deferred.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>

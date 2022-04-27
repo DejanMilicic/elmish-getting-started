@@ -5,15 +5,6 @@ open Elmish.React
 open Feliz
 open CmdExt
 
-type Deferred<'t> =
-    | HasNotStartedYet
-    | InProgress
-    | Resolved of 't
-
-type AsyncOperationStatus<'t> =
-    | Started
-    | Finished of 't
-
 type State =
     { RandomNumber: Deferred<Result<double, string>> }
 
