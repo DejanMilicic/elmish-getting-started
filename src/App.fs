@@ -4,58 +4,89 @@ open Elmish
 open Elmish.React
 open Feliz
 open CmdExt
+open Browser.Types
+open Browser
 
 type State =
-    { RandomNumber: Deferred<Result<double, string>> }
+    { LoremIpsum: Deferred<Result<string, string>> }
 
-type Msg = GenerateRandomNumber of AsyncOperationStatus<Result<double, string>>
+type Msg = LoadLoremIpsum of AsyncOperationStatus<Result<string, string>>
+
 
 let init () =
-    { RandomNumber = HasNotStartedYet }, Cmd.none
+    { LoremIpsum = HasNotStartedYet }, Cmd.ofMsg (LoadLoremIpsum Started)
 
-let rnd = System.Random()
+type Request =
+    { url: string
+      method: string
+      body: string }
+
+type Response = { statusCode: int; body: string }
+
+let httpRequest (request: Request) (responseHandler: Response -> 'Msg) : Cmd<'Msg> =
+    let command (dispatch: 'Msg -> unit) =
+        // create an instance
+        let xhr = XMLHttpRequest.Create()
+        // open the connection
+        xhr.``open`` (method = request.method, url = request.url)
+        // setup the event handler that triggers when the content is loaded
+        xhr.onreadystatechange <-
+            fun _ ->
+                if xhr.readyState = ReadyState.Done then
+                    // create the response
+                    let response =
+                        { statusCode = xhr.status
+                          body = xhr.responseText }
+                    // transform response into a message
+                    let messageToDispatch = responseHandler response
+                    dispatch messageToDispatch
+
+        // send the request
+        xhr.send (request.body)
+
+    Cmd.ofSub command
+
+
 
 let update msg state =
     match msg with
-    | GenerateRandomNumber Started when state.RandomNumber = InProgress -> state, Cmd.none
-    | GenerateRandomNumber Started ->
-        let randomOp: Async<Msg> =
-            async {
-                do! Async.Sleep 1000
-                let random = rnd.NextDouble()
+    | LoadLoremIpsum Started ->
+        let nextState = { state with LoremIpsum = InProgress }
 
-                if random > 0.5 then
-                    return GenerateRandomNumber(Finished(Ok random))
-                else
-                    let errorMsg =
-                        sprintf "Failed! Random number %f was <= 0.5" random
+        let request =
+            { url = "/lorem-ipsum.txt"
+              method = "GET"
+              body = "" }
 
-                    return GenerateRandomNumber(Finished(Error errorMsg))
-            }
+        let responseMapper (response: Response) =
+            if response.statusCode = 200 then
+                LoadLoremIpsum(Finished(Ok response.body))
+            else
+                LoadLoremIpsum(Finished(Error "Could not load the content"))
 
-        { state with RandomNumber = InProgress }, Cmd.fromAsync randomOp
+        nextState, httpRequest request responseMapper
 
-    | GenerateRandomNumber (Finished (Ok randomNumber)) ->
-        { state with RandomNumber = Resolved(Ok randomNumber) }, Cmd.none
+    | LoadLoremIpsum (Finished result) ->
+        let nextState =
+            { state with LoremIpsum = Resolved result }
 
-    | GenerateRandomNumber (Finished (Error error)) -> { state with RandomNumber = Resolved(Error error) }, Cmd.none
+        nextState, Cmd.none
+
+
 
 let render (state: State) (dispatch: Msg -> unit) =
-    let content =
-        match state.RandomNumber with
-        | HasNotStartedYet -> Html.h1 "Hasn't started yet!"
-        | InProgress -> Html.h1 "LOADING..."
-        | Resolved (Ok number) ->
-            Html.h1 [ prop.style [ style.color.green ]
-                      prop.text (sprintf "Successfully generated random number: %f" number) ]
-        | Resolved (Error errorMsg) ->
-            Html.h1 [ prop.style [ style.color.crimson ]
-                      prop.text errorMsg ]
+    match state.LoremIpsum with
+    | HasNotStartedYet -> Html.none
 
-    Html.div [ prop.children [ content
-                               Html.button [ prop.disabled (state.RandomNumber = InProgress)
-                                             prop.onClick (fun _ -> dispatch (GenerateRandomNumber Started))
-                                             prop.text "Generate Random" ] ] ]
+    | InProgress -> Html.div "Loading..."
+
+    | Resolved (Ok content) ->
+        Html.div [ prop.style [ style.color.green ]
+                   prop.text content ]
+
+    | Resolved (Error errorMsg) ->
+        Html.div [ prop.style [ style.color.red ]
+                   prop.text errorMsg ]
 
 Program.mkProgram init update render
 |> Program.withReactSynchronous "elmish-app"
