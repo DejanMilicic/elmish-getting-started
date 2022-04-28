@@ -6,6 +6,7 @@ open Feliz
 open CmdExt
 open Browser.Types
 open Browser
+open Fable.SimpleHttp
 
 type State =
     { LoremIpsum: Deferred<Result<string, string>> }
@@ -47,10 +48,9 @@ let update msg state =
         let nextState = { state with LoremIpsum = InProgress }
         let loadLoremIpsum =
             async {
-                let request = { url = "/lorem-ipsum.txt"; method = "GET"; body = "" }
-                let! response = httpRequest request
-                if response.statusCode = 200
-                then return LoadLoremIpsum (Finished (Ok response.body))
+                let! (statusCode, responseText) = Http.get "/lorem-ipsum.txt"
+                if statusCode = 200
+                then return LoadLoremIpsum (Finished (Ok responseText))
                 else return LoadLoremIpsum (Finished (Error "Could not load the content"))
             }
 
