@@ -8,14 +8,48 @@ open Browser.Types
 open Browser
 open Fable.SimpleHttp
 
-type State =
-    { LoremIpsum: Deferred<Result<string, string>> }
+type HackernewsItem =
+    { id: int
+      title: string
+      url: string option }
 
-type Msg = LoadLoremIpsum of AsyncOperationStatus<Result<string, string>>
+type State =
+    { StoryItems: Deferred<Result<HackernewsItem list, string>> }
+
+type Msg = LoadStoryItems of AsyncOperationStatus<Result<HackernewsItem list, string>>
 
 
 let init () =
-    { LoremIpsum = HasNotStartedYet }, Cmd.ofMsg (LoadLoremIpsum Started)
+    let initialState = { StoryItems = HasNotStartedYet }
+    let initialCmd = Cmd.ofMsg (LoadStoryItems Started)
+    initialState, initialCmd
+
+let loadStoryItems = async {
+    // simulate network delay
+    do! Async.Sleep 1500
+    let storyItems = [ { id = 1; title = "Example title"; url = None } ]
+    return LoadStoryItems (Finished (Ok storyItems))
+}
+
+let update (msg: Msg) (state: State) =
+    match msg with
+    | LoadStoryItems Started ->
+        let nextState = { state with StoryItems = InProgress }
+        nextState, Cmd.fromAsync loadStoryItems
+
+    | LoadStoryItems (Finished (Ok storyItems)) ->
+        let nextState =
+            { state with StoryItems = Resolved(Ok storyItems) }
+
+        nextState, Cmd.none
+
+    | LoadStoryItems (Finished (Error error)) ->
+        let nextState =
+            { state with StoryItems = Resolved(Error error) }
+
+        nextState, Cmd.none
+
+
 
 type Request =
     { url: string
@@ -25,56 +59,79 @@ type Request =
 type Response = { statusCode: int; body: string }
 
 let httpRequest (request: Request) : Async<Response> =
-    Async.FromContinuations <| fun (resolve, reject, _) ->
+    Async.FromContinuations
+    <| fun (resolve, reject, _) ->
         // create an instance
         let xhr = XMLHttpRequest.Create()
         // open the connection
-        xhr.``open``(method=request.method, url=request.url)
+        xhr.``open`` (method = request.method, url = request.url)
         // setup the event handler that triggers when the content is loaded
-        xhr.onreadystatechange <- fun _ ->
-            if xhr.readyState = ReadyState.Done
-            then
-              // create the response
-              let response = { statusCode = xhr.status; body = xhr.responseText }
-              // transform response into a message
-              resolve response
+        xhr.onreadystatechange <-
+            fun _ ->
+                if xhr.readyState = ReadyState.Done then
+                    // create the response
+                    let response =
+                        { statusCode = xhr.status
+                          body = xhr.responseText }
+                    // transform response into a message
+                    resolve response
 
         // send the request
-        xhr.send(request.body)
+        xhr.send (request.body)
 
-let update msg state =
-    match msg with
-    | LoadLoremIpsum Started ->
-        let nextState = { state with LoremIpsum = InProgress }
-        let loadLoremIpsum =
-            async {
-                let! (statusCode, responseText) = Http.get "/lorem-ipsum.txt"
-                if statusCode = 200
-                then return LoadLoremIpsum (Finished (Ok responseText))
-                else return LoadLoremIpsum (Finished (Error "Could not load the content"))
-            }
+let renderError (errorMsg: string) =
+  Html.h1 [
+    prop.style [ style.color.red ]
+    prop.text errorMsg
+  ]
 
-        nextState, Cmd.fromAsync loadLoremIpsum
+let renderItem item =
+  Html.div [
+    prop.key item.id
+    prop.className "box"
+    prop.style [ style.marginTop 15; style.marginBottom 15 ]
+    prop.children [
+      match item.url with
+      | Some url ->
+          Html.a [
+            prop.style [ style.textDecoration.underline ]
+            prop.target.blank
+            prop.href url
+            prop.text item.title
+          ]
+      | None ->
+          Html.p item.title
+    ]
+  ]
 
-    | LoadLoremIpsum (Finished result) ->
-        let nextState = { state with LoremIpsum = Resolved result }
-        nextState, Cmd.none
+let spinner =
+  Html.div [
+    prop.style [ style.textAlign.center; style.marginTop 20 ]
+    prop.children [
+      Html.i [
+        prop.className "fa fa-cog fa-spin fa-2x"
+      ]
+    ]
+  ]
 
-
+let renderItems = function
+  | HasNotStartedYet -> Html.none
+  | InProgress -> spinner
+  | Resolved (Error errorMsg) -> renderError errorMsg
+  | Resolved (Ok items) -> React.fragment [ for item in items -> renderItem item ]
 
 let render (state: State) (dispatch: Msg -> unit) =
-    match state.LoremIpsum with
-    | HasNotStartedYet -> Html.none
+  Html.div [
+    prop.style [ style.padding 20 ]
+    prop.children [
+      Html.h1 [
+        prop.className "title"
+        prop.text "Elmish Hackernews"
+      ]
 
-    | InProgress -> Html.div "Loading..."
-
-    | Resolved (Ok content) ->
-        Html.div [ prop.style [ style.color.green ]
-                   prop.text content ]
-
-    | Resolved (Error errorMsg) ->
-        Html.div [ prop.style [ style.color.red ]
-                   prop.text errorMsg ]
+      renderItems state.StoryItems
+    ]
+  ]
 
 Program.mkProgram init update render
 |> Program.withReactSynchronous "elmish-app"
