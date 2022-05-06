@@ -1,6 +1,6 @@
 module CmdExt
 
-module Cmd = 
+module Cmd =
 
     open Elmish
 
@@ -15,3 +15,10 @@ module Cmd =
             Async.StartImmediate delayedDispatch
 
         Cmd.ofSub delayedCmd
+
+module Async =
+    let map f (computation: Async<'t>) =
+        async {
+            let! x = computation
+            return f x
+        }
